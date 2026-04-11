@@ -1,6 +1,8 @@
 import pdfplumber
 import whisper
 import subprocess
+import requests
+import os
 
 # Load model once
 model = whisper.load_model("base")
@@ -30,3 +32,23 @@ def video_to_text(file_path):
     ])
 
     return audio_to_text(audio_path)
+
+def call_grok(prompt):
+    url = "https://api.groq.com/openai/v1/chat/completions"
+
+    headers = {
+        "Authorization": f"Bearer {os.getenv('GROK_API_KEY')}",
+        "Content-Type": "application/json"
+    }
+
+    data = {
+        "model": "llama-3.3-70b-versatile" ,
+        "messages": [
+            {"role": "system", "content": "You are an AI assistant."},
+            {"role": "user", "content": prompt}
+        ]
+    }
+
+    response = requests.post(url, headers=headers, json=data)
+
+    return response.json()

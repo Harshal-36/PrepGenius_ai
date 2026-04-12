@@ -5,6 +5,7 @@ from .models import UploadedFile
 from .serializers import FileUploadSerializer
 from .utils import extract_pdf, audio_to_text, video_to_text
 from .models import UploadedFile
+from .models import ChatHistory
 from .utils import call_grok
 import os
 
@@ -55,36 +56,47 @@ def ask_question(request):
     file_id = request.data.get('file_id')
     question = request.data.get('question')
 
-    try:
-        file = UploadedFile.objects.get(id=file_id)
-    except UploadedFile.DoesNotExist:
-        return Response({"error": "File not found"}, status=404)
+    file = UploadedFile.objects.get(id=file_id)
 
-    context = file.extracted_text[:4000]
+    context = file.extracted_text
 
     prompt = f"""
     You are an AI tutor.
-
-    Based only on the content below, answer the question.
 
     Content:
     {context}
 
     Question:
     {question}
-
-    Answer clearly.
     """
 
     result = call_grok(prompt)
-    print(result)
-    print("API KEY:", os.getenv("GROK_API_KEY"))
-    print("EXTRACTED TEXT:", file.extracted_text)
-
 
     answer = result.get("choices", [{}])[0].get("message", {}).get("content", "")
+
+    # 🔥 SAVE CHAT
+    ChatHistory.objects.create(
+        file=file,
+        question=question,
+        answer=answer
+    )
 
     return Response({
         "question": question,
         "answer": answer
     })
+
+
+@api_view(['GET'])
+def get_chat_history(request, file_id):
+    chats = ChatHistory.objects.filter(file_id=file_id).order_by('-created_at')
+
+    data = []
+    for chat in chats:
+        data.append({
+            "question": chat.question,
+            "answer": chat.answer,
+            "time": chat.created_at
+        })
+
+    return Response(data)

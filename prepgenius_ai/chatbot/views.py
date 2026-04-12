@@ -1,5 +1,5 @@
 from django.shortcuts import render
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from .models import UploadedFile
 from .serializers import FileUploadSerializer
@@ -8,6 +8,8 @@ from .models import UploadedFile
 from .models import ChatHistory
 from .utils import call_grok
 import os
+from rest_framework.permissions import IsAuthenticated
+
 
 @api_view(['GET'])
 def test_api(request):
@@ -17,6 +19,7 @@ def test_api(request):
 from .utils import extract_pdf, audio_to_text, video_to_text
 
 @api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def upload_file(request):
     file = request.FILES.get('file')
 
@@ -52,6 +55,7 @@ def upload_file(request):
     })
 
 @api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def ask_question(request):
     file_id = request.data.get('file_id')
     question = request.data.get('question')
@@ -88,6 +92,7 @@ def ask_question(request):
 
 
 @api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def get_chat_history(request, file_id):
     chats = ChatHistory.objects.filter(file_id=file_id).order_by('-created_at')
 

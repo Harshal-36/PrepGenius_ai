@@ -9,6 +9,7 @@ from .models import ChatHistory
 from .utils import call_grok
 import os
 from rest_framework.permissions import IsAuthenticated
+from django.contrib.auth.models import User
 
 
 @api_view(['GET'])
@@ -16,7 +17,22 @@ def test_api(request):
     return Response({"message": "PrepGenius AI backend working 🚀"})
 
 
-from .utils import extract_pdf, audio_to_text, video_to_text
+@api_view(['POST'])
+def register_user(request):
+    username = request.data.get('username')
+    password = request.data.get('password')
+
+    if User.objects.filter(username=username).exists():
+        return Response({"error": "User already exists"}, status=400)
+
+    user = User.objects.create_user(
+        username=username,
+        password=password
+    )
+
+    return Response({"message": "User created successfully"})
+
+
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])

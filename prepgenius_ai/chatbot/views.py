@@ -21,12 +21,14 @@ def test_api(request):
 def register_user(request):
     username = request.data.get('username')
     password = request.data.get('password')
+    email = request.data.get('email')
 
     if User.objects.filter(username=username).exists():
         return Response({"error": "User already exists"}, status=400)
 
     user = User.objects.create_user(
         username=username,
+        email=email,
         password=password
     )
 
@@ -67,7 +69,8 @@ def upload_file(request):
 
     return Response({
         "message": "File processed successfully",
-        "preview": text[:300]
+        "preview": text[:300],
+        "id": obj.id
     })
 
 @api_view(['POST'])
@@ -146,9 +149,12 @@ def ask_question(request):
         """
 
     # 🔥 Call AI
-    result = call_groq(prompt)
+    result = call_grok(prompt)
 
     answer = result.get("choices", [{}])[0].get("message", {}).get("content", "")
+    print(result)
+    print(answer)
+    print("api called")
 
     # 🔥 Save Chat History
     ChatHistory.objects.create(

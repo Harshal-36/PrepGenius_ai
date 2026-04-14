@@ -58,34 +58,91 @@ def upload_file(request):
 @permission_classes([IsAuthenticated])
 def ask_question(request):
     file_id = request.data.get('file_id')
-    question = request.data.get('question')
+    question = request.data.get('question', "")
+    mode = request.data.get('mode', 'qa')  # default = question answering
 
-    file = UploadedFile.objects.get(id=file_id)
+    try:
+        file = UploadedFile.objects.get(id=file_id)
+    except UploadedFile.DoesNotExist:
+        return Response({"error": "File not found"}, status=404)
 
     context = file.extracted_text
 
-    prompt = f"""
-    You are an AI tutor.
+    if not context:
+        return Response({"error": "No extracted text found for this file"}, status=400)
 
-    Content:
-    {context}
+    # 🔥 Dynamic Prompt Based on Mode
+    if mode == "notes":
+        prompt = f"""
+        Create short and clear notes from the content below.
 
-    Question:
-    {question}
-    """
+        Use headings and bullet points.
 
-    result = call_grok(prompt)
+        Content:
+        {context}
+        """
+
+    elif mode == "mcq":
+        prompt = f"""
+        Generate 5 multiple choice questions (MCQs) from the content below.
+
+        Each question should have:
+        - 4 options
+        - 1 correct answer
+
+        Content:
+        {context}
+        """
+
+    elif mode == "flashcards":
+        prompt = f"""
+        Create flashcards from the content below.
+
+        Format:
+        Question:
+        Answer:
+
+        Content:
+        {context}
+        """
+
+    elif mode == "interview":
+        prompt = f"""
+        You are an expert interviewer.
+
+        Generate 5 interview questions based on the content below.
+
+        Content:
+        {context}
+        """
+
+    else:  # Default Q&A
+        prompt = f"""
+        You are an AI tutor.
+
+        Answer the question based only on the content below.
+
+        Content:
+        {context}
+
+        Question:
+        {question}
+        """
+
+    # 🔥 Call AI
+    result = call_groq(prompt)
 
     answer = result.get("choices", [{}])[0].get("message", {}).get("content", "")
 
-    # 🔥 SAVE CHAT
+    # 🔥 Save Chat History
     ChatHistory.objects.create(
         file=file,
-        question=question,
+        question=question if question else mode,
         answer=answer
     )
 
     return Response({
+        "mode": mode,
         "question": question,
         "answer": answer
     })
